@@ -21,9 +21,11 @@ import { useState, useEffect } from "react";
 import AudioRecorderButton from "../../components/ui/AudioRecorderButton";
 import UploadPicture from "../../components/ui/uploadPicture";
 import { createClient } from "../../lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function ProtectedPage() {
   const supabase = createClient();
+  const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
 
   const fetchProducts = async () => {
@@ -192,19 +194,13 @@ export default function ProtectedPage() {
               </select>
 
               {/* AI / Record Audio buttons */}
-              <div className="flex justify-between items-start w-full relative">
-                <button
-                  type="button"
-                  className="px-4 py-2 bg-gray-800 text-white rounded-md border border-gray-600 hover:bg-gray-700 transition"
-                >
-                  AI Description
-                </button>
-                <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-gray-400">
+              <div className="flex justify-center items-start w-full relative">
+                <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-gray-400 p-3">
                   OR
                 </span>
                 <AudioRecorderButton />
               </div>
-
+                
               {/* Description */}
               <textarea
                 name="description"
@@ -261,7 +257,7 @@ export default function ProtectedPage() {
                 {/* Expand Button */}
                 <button
                   className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition"
-                  onClick={() => alert(`Expand ${product.name}`)} // Replace this later with real modal logic
+                  onClick={() => router.push(`/protected/product/${product.id}`)} // Replace this later with real modal logic
                 >
                   Expand
                 </button>
