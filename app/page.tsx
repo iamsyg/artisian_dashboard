@@ -32,7 +32,7 @@ export default function Home() {
           <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
             <div className="flex gap-5 items-center font-semibold">
               <Link href={"/"}>Welcome to Artisan AI</Link>
-              {/* Dashboard Button */}
+              {/* Dashboard */}
                 <Link href="/protected">
                   <button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm transition">
                     Dashboard
