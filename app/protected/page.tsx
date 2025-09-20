@@ -192,19 +192,13 @@ export default function ProtectedPage() {
               </select>
 
               {/* AI / Record Audio buttons */}
-              <div className="flex justify-between items-start w-full relative">
-                <button
-                  type="button"
-                  className="px-4 py-2 bg-gray-800 text-white rounded-md border border-gray-600 hover:bg-gray-700 transition"
-                >
-                  AI Description
-                </button>
-                <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-gray-400">
+              <div className="flex justify-center items-start w-full relative">
+                <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-gray-400 p-3">
                   OR
                 </span>
                 <AudioRecorderButton />
               </div>
-
+                
               {/* Description */}
               <textarea
                 name="description"
