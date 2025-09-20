@@ -21,9 +21,11 @@ import { useState, useEffect } from "react";
 import AudioRecorderButton from "../../components/ui/AudioRecorderButton";
 import UploadPicture from "../../components/ui/uploadPicture";
 import { createClient } from "../../lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function ProtectedPage() {
   const supabase = createClient();
+  const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
 
   const fetchProducts = async () => {
@@ -255,7 +257,7 @@ export default function ProtectedPage() {
                 {/* Expand Button */}
                 <button
                   className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition"
-                  onClick={() => alert(`Expand ${product.name}`)} // Replace this later with real modal logic
+                  onClick={() => router.push(`/protected/product/${product.id}`)} // Replace this later with real modal logic
                 >
                   Expand
                 </button>
