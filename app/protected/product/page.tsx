@@ -141,6 +141,19 @@ export default function ProductPage() {
                        focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+
+        {/* AI Description */}
+        <div>
+          <label className="block text-sm font-medium mb-2">AI Description</label>
+          <textarea
+            name="ai_description"
+            value={product.ai_description || ""}
+            onChange={handleChange}
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 
+                       bg-white dark:bg-neutral-900 px-3 py-2 h-32 resize-none 
+                       focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       {/* Right column */}

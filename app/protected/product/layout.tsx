@@ -39,6 +39,16 @@ export default function ProductLayout({
         >
           Analytics
         </Link>
+        <Link
+          href={`/protected/product/generation${query}`}
+          className={`px-4 py-2 rounded ${
+            pathname.includes("/generation")
+              ? "bg-blue-600 text-white"
+              : "bg-gray-200"
+          }`}
+        >
+          Generation
+        </Link>
       </div>
 
       {/* Render details or analytics */}

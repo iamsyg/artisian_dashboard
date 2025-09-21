@@ -63,7 +63,6 @@ export default function ProtectedPage() {
     }
   };
 
-  // ✅ Handle Delete Function
   const handleDelete = async (productId: number) => {
     try {
       const { error } = await supabase
@@ -76,7 +75,7 @@ export default function ProtectedPage() {
         alert("Failed to delete product.");
       } else {
         alert("Product deleted successfully!");
-        fetchProducts(); // Refresh product list
+        fetchProducts();
       }
     } catch (err) {
       console.error("❌ Unexpected error:", err);
@@ -105,22 +104,42 @@ export default function ProtectedPage() {
         photoUrl = publicUrlData.publicUrl;
       }
 
-      const { error } = await supabase.from("PRODUCT").insert([
-        {
-          name: formData.productName,
-          price: formData.productPrice,
-          description: formData.description,
-          image_url: photoUrl,
-          language: formData.language,
-        },
-      ]);
+      const { data: inserted, error } = await supabase
+        .from("PRODUCT")
+        .insert([
+          {
+            name: formData.productName,
+            price: formData.productPrice,
+            description: formData.description,
+            image_url: photoUrl,
+            language: formData.language,
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      // ✅ Refresh products list
+      if (inserted) {
+        try {
+          const res = await fetch("/api/protected", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              product_id: inserted.id,
+              image_url: inserted.image_url,
+            }),
+          });
+
+          const result = await res.json();
+          console.log("AI route result:", result);
+        } catch (err) {
+          console.error("❌ Failed to call AI route:", err);
+        }
+      }
+
       await fetchProducts();
 
-      // ✅ Reset form
       setFormData({
         productName: "",
         productPrice: "",
@@ -134,19 +153,21 @@ export default function ProtectedPage() {
   };
 
   return (
-    <div className="py-20 flex flex-col items-center justify-start w-full">
+    <div className="py-20 flex flex-col items-center justify-start w-full bg-neutral-50 dark:bg-neutral-900 transition-colors">
       {/* Modal Section */}
       <Modal>
-        <ModalTrigger className="bg-black dark:bg-white dark:text-black text-white flex justify-top group/modal-btn">
+        <ModalTrigger className="bg-neutral-800 dark:bg-neutral-200 text-white dark:text-black flex justify-top group/modal-btn rounded-lg shadow hover:opacity-90 transition">
           <div className="w-20 h-20 rounded-md flex items-center justify-center">
-            <span className="text-8xl leading-none flex items-center mb-3">+</span>
+            <span className="text-6xl font-bold leading-none flex items-center mb-2">
+              +
+            </span>
           </div>
         </ModalTrigger>
 
         <ModalBody>
           <ModalContent>
             <form className="flex flex-col items-center gap-6 p-6 w-full max-w-md mx-auto">
-              <h2 className="text-lg font-medium text-white">
+              <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100">
                 Let's add a new product
               </h2>
 
@@ -157,25 +178,29 @@ export default function ProtectedPage() {
                 value={formData.productName}
                 onChange={handleChange}
                 placeholder="Enter product name"
-                className="w-full p-2 rounded-md border border-gray-500 bg-black text-white focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full p-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-400"
               />
 
               {/* Product Price */}
-              <div className="w-full flex items-center rounded-md border border-gray-500 bg-black text-white focus-within:ring-2 focus-within:ring-gray-400">
-                <span className="px-3 text-gray-300">₹</span>
+              <div className="w-full flex items-center rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus-within:ring-2 focus-within:ring-neutral-400">
+                <span className="px-3 text-neutral-500">₹</span>
                 <input
                   type="number"
                   name="productPrice"
                   value={formData.productPrice}
                   onChange={handleChange}
                   placeholder="Enter product price"
-                  className="w-full p-2 bg-black text-white focus:outline-none"
+                  className="w-full p-2 bg-transparent text-inherit focus:outline-none"
                 />
               </div>
 
               {/* Upload Photo */}
               <div className="flex flex-col items-center">
-                <UploadPicture onFileSelect={(file) => setFormData({ ...formData, productPhoto: file })} />
+                <UploadPicture
+                  onFileSelect={(file) =>
+                    setFormData({ ...formData, productPhoto: file })
+                  }
+                />
               </div>
 
               {/* Language Selector */}
@@ -183,7 +208,7 @@ export default function ProtectedPage() {
                 name="language"
                 value={formData.language}
                 onChange={handleChange}
-                className="w-full p-2 rounded-md border border-gray-500 bg-black text-white"
+                className="w-full p-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
               >
                 <option value="" disabled>
                   Choose your preferred language
@@ -195,19 +220,19 @@ export default function ProtectedPage() {
 
               {/* AI / Record Audio buttons */}
               <div className="flex justify-center items-start w-full relative">
-                <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-gray-400 p-3">
+                <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-neutral-500 p-3">
                   OR
                 </span>
                 <AudioRecorderButton />
               </div>
-                
+
               {/* Description */}
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
                 placeholder="Write description yourself"
-                className="w-full h-24 p-3 mt-5 rounded-md border border-gray-500 bg-black text-white resize-none focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full h-24 p-3 mt-5 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 resize-none focus:outline-none focus:ring-2 focus:ring-neutral-400"
               ></textarea>
             </form>
           </ModalContent>
@@ -216,7 +241,7 @@ export default function ProtectedPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              className="bg-black text-white dark:bg-white dark:text-black text-sm px-2 py-1 rounded-md border border-black w-28"
+              className="bg-neutral-800 text-white dark:bg-neutral-200 dark:text-black text-sm px-4 py-2 rounded-md border border-transparent hover:opacity-90 transition w-28"
             >
               Done
             </button>
@@ -229,11 +254,13 @@ export default function ProtectedPage() {
         {products.map((product) => (
           <Card
             key={product.id}
-            className="bg-black text-white border border-gray-700 w-64"
+            className="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 w-64 shadow-sm hover:shadow-md transition"
           >
             <CardHeader>
               <CardTitle>{product.name}</CardTitle>
-              <CardDescription>₹{product.price}</CardDescription>
+              <CardDescription className="text-neutral-600 dark:text-neutral-400">
+                ₹{product.price}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {product.image_url && (
@@ -243,29 +270,32 @@ export default function ProtectedPage() {
                   className="w-full h-40 object-cover rounded-md mb-3"
                 />
               )}
-              <p className="text-sm text-gray-300">{product.description}</p>
+              <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                {product.description}
+              </p>
             </CardContent>
 
             <CardFooter className="flex flex-col justify-between">
               {/* Language Info */}
-              <span className="text-xs text-gray-500 items-left mb-3">
+              <span className="text-xs text-neutral-500 mb-3">
                 Language: {product.language}
               </span>
 
               {/* Action Buttons */}
               <div className="flex flex-row gap-2 items-end">
-                {/* Expand Button */}
                 <button
-                  className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition"
-                  onClick={() => router.push(`/protected/product?id=${product.id}`)} // Replace this later with real modal logic
+                  className="px-3 py-1 text-xs bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-800 dark:text-neutral-100 rounded transition"
+                  onClick={() =>
+                    router.push(`/protected/product?id=${product.id}`)
+                  }
                 >
                   Expand
                 </button>
 
-                {/* Delete Button */}
                 <button
                   onClick={() => handleDelete(product.id)}
-                  className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition" >
+                  className="px-3 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
+                >
                   Delete
                 </button>
               </div>
@@ -276,3 +306,4 @@ export default function ProtectedPage() {
     </div>
   );
 }
+
