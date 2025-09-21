@@ -257,7 +257,7 @@ export default function ProtectedPage() {
                 {/* Expand Button */}
                 <button
                   className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition"
-                  onClick={() => router.push(`/protected/product/${product.id}`)} // Replace this later with real modal logic
+                  onClick={() => router.push(`/protected/product?id=${product.id}`)} // Replace this later with real modal logic
                 >
                   Expand
                 </button>
