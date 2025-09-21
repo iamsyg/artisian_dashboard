@@ -1,6 +1,6 @@
-export const runtime = "nodejs";
-
 "use client";
+
+export const runtime = "nodejs";
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
