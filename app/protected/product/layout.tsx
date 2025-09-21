@@ -1,13 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
-export default function ProductLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function ProductLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const productId = searchParams.get("id");
@@ -15,8 +12,7 @@ export default function ProductLayout({
   // build query string
   const query = productId ? `?id=${productId}` : "";
 
-  const baseClasses =
-    "px-4 py-2 rounded-md transition-colors font-medium";
+  const baseClasses = "px-4 py-2 rounded-md transition-colors font-medium";
   const activeClasses =
     "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700";
   const inactiveClasses =
@@ -29,9 +25,7 @@ export default function ProductLayout({
         <Link
           href={`/protected/product${query}`}
           className={`${baseClasses} ${
-            pathname === "/protected/product"
-              ? activeClasses
-              : inactiveClasses
+            pathname === "/protected/product" ? activeClasses : inactiveClasses
           }`}
         >
           Details
@@ -39,9 +33,7 @@ export default function ProductLayout({
         <Link
           href={`/protected/product/analytics${query}`}
           className={`${baseClasses} ${
-            pathname.includes("/analytics")
-              ? activeClasses
-              : inactiveClasses
+            pathname.includes("/analytics") ? activeClasses : inactiveClasses
           }`}
         >
           Analytics
@@ -49,9 +41,7 @@ export default function ProductLayout({
         <Link
           href={`/protected/product/generation${query}`}
           className={`${baseClasses} ${
-            pathname.includes("/generation")
-              ? activeClasses
-              : inactiveClasses
+            pathname.includes("/generation") ? activeClasses : inactiveClasses
           }`}
         >
           Generation
@@ -65,5 +55,14 @@ export default function ProductLayout({
     </div>
   );
 }
+
+export default function ProductLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <ProductLayoutContent>{children}</ProductLayoutContent>
+    </Suspense>
+  );
+}
+
 
 
