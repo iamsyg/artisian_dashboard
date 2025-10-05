@@ -88,7 +88,11 @@ export default function ProtectedLayout({
 
       {/* Right side content */}
       <div className="flex flex-1 flex-col h-screen rounded-tl-2xl rounded-tr-2xl overflow-hidden border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-        <header className="sticky top-0 z-10 bg-black p-6 border-b border-neutral-700 flex justify-between items-center rounded-tl-2xl rounded-tr-2xl">
+        <header className="sticky top-0 z-10 
+          bg-white dark:bg-black 
+          border-b border-neutral-200 dark:border-neutral-700 
+          p-6 flex justify-between items-center 
+          rounded-tl-2xl rounded-tr-2xl transition-colors duration-300">
           <ThemeSwitcher />
           <div className="flex space-x-4">
             {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
