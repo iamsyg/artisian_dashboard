@@ -6,6 +6,7 @@ import {
   ModalContent,
   ModalFooter,
   ModalTrigger,
+  ModalDoneButton,
 } from "../../components/ui/animated-modal";
 
 import {
@@ -203,21 +204,6 @@ export default function ProtectedPage() {
                 />
               </div>
 
-              {/* Language Selector */}
-              <select
-                name="language"
-                value={formData.language}
-                onChange={handleChange}
-                className="w-full p-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
-              >
-                <option value="" disabled>
-                  Choose your preferred language
-                </option>
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-                <option value="es">Spanish</option>
-              </select>
-
               {/* AI / Record Audio buttons */}
               <div className="flex justify-center items-start w-full relative">
                 <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-neutral-500 p-3">
@@ -238,13 +224,7 @@ export default function ProtectedPage() {
           </ModalContent>
 
           <ModalFooter className="gap-4">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="bg-neutral-800 text-white dark:bg-neutral-200 dark:text-black text-sm px-4 py-2 rounded-md border border-transparent hover:opacity-90 transition w-28"
-            >
-              Done
-            </button>
+            <ModalDoneButton onSubmit={handleSubmit} />
           </ModalFooter>
         </ModalBody>
       </Modal>

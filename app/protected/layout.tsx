@@ -8,6 +8,7 @@ import {
   IconWallet,
   IconAnalyze,
   IconDashboard,
+  IconSettings,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { hasEnvVars } from "@/lib/utils";
@@ -47,6 +48,11 @@ export default function ProtectedLayout({
   children: ReactNode;
 }) {
   const buttons = [
+    {
+      label: "Profile",
+      href: "/protected/profile",
+      icon: <IconSettings className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />,
+    },
     {
       label: "Dashboard",
       href: "/protected",
