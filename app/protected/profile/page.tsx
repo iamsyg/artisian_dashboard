@@ -11,7 +11,6 @@ export default function ProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [profile, setProfile] = useState({
     display_name: "",
     profile_picture: "",
@@ -82,8 +81,6 @@ export default function ProfilePage() {
   };
 
   const handleDelete = async () => {
-    try {
-      setDeleting(true);
 
       const confirmed = window.confirm(
         "Are you sure you want to delete your seller account? This cannot be undone."
@@ -109,9 +106,6 @@ export default function ProfilePage() {
       alert("✅ Account deleted successfully");
       await supabase.auth.signOut();
       window.location.reload();
-    } finally {
-      setDeleting(false);
-    }
   };
 
   if (loading) {
@@ -204,7 +198,8 @@ export default function ProfilePage() {
           {/* Audio + Manual Description Component */}
           <AudioDescriptionRecorder
             // Optional: you can provide initial value or a callback if needed
-            // onChange={(value) => setProfile({ ...profile, description: value })}
+            initialDescription={profile.description}
+            onChange={(value) => setProfile({ ...profile, description: value })}
           />
         </div>
 
@@ -222,10 +217,9 @@ export default function ProfilePage() {
         <div className="flex">
         <button
           onClick={handleDelete}
-          disabled={deleting}
           className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition disabled:opacity-50"
         >
-          {saving ? "Deleting..." : "Delete Account"}
+          Delete Account
         </button>
         </div>
       </div>
