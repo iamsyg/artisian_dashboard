@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import UploadPicture from "@/components/ui/uploadPicture";
-import AudioDescriptionRecorder from "@/components/ui/audioDescriptionRecorder"; 
+import AudioDescriptionRecorder from "@/components/ui/audioDescriptionRecorder";
+import { useProfile } from "@/contexts/ProfileContexts";
 import Image from "next/image";
 
 export default function ProfilePage() {
   const supabase = createClient();
-
+  const { setProfilePicture } = useProfile();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({
@@ -116,6 +117,8 @@ export default function ProfilePage() {
       // clear pending image and update local state to show new URL immediately
       setPendingImage(null);
       setProfile(prev => ({ ...prev, profile_picture: finalProfilePicture }));
+
+      if (finalProfilePicture) setProfilePicture(finalProfilePicture);
     }
 
     setSaving(false);
@@ -165,13 +168,17 @@ export default function ProfilePage() {
         {/* Profile Picture */}
         <div className="flex items-center space-x-4">
         <div className="w-20 h-20 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0">
-          <Image
-            src={profile.profile_picture}
-            alt="Profile Picture"
-            width={80}
-            height={80}
-            className="object-cover w-full h-full"
-          />
+          {profile.profile_picture ? (
+            <Image
+              src={profile.profile_picture}
+              alt="Profile Picture"
+              width={80}
+              height={80}
+              className="object-cover w-full h-full"
+            />
+          ) : (
+            <div className="w-full h-full rounded-full bg-gray-300 dark:bg-gray-700" />
+          )}
         </div>
 
         {/* Upload Section */}

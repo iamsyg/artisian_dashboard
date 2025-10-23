@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { hasEnvVars } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { ProfileProvider } from "@/contexts/ProfileContexts";
 
 export const metadata = {
   title: "Protected Area",
@@ -93,6 +94,7 @@ export default function ProtectedLayout({
       </Sidebar>
 
       {/* Right side content */}
+      <ProfileProvider>
       <div className="flex flex-1 flex-col h-screen rounded-tl-2xl rounded-tr-2xl overflow-hidden border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
         <header className="sticky top-0 z-10 
           bg-white dark:bg-black 
@@ -106,6 +108,7 @@ export default function ProtectedLayout({
         </header>
         <main className="flex-1 overflow-y-auto p-4">{children}</main>
       </div>
+      </ProfileProvider>
     </div>
   );
 }

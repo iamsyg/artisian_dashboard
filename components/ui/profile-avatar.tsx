@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { useIsMounted } from "@/hooks/useIsMounted";
+import { useProfile } from "@/contexts/ProfileContexts"; // ✅ import context
 
 interface ProfileAvatarProps {
   size?: number;
@@ -13,31 +14,9 @@ interface ProfileAvatarProps {
 const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 35 }) => {
   const router = useRouter();
   const isMounted = useIsMounted(); // our hook
-  const [open, setOpen] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string>(); // default image
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Fetch profile picture from Supabase on mount
-  useEffect(() => {
-    const fetchProfileImage = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data, error } = await supabase
-          .from("sellers")
-          .select("profile_picture")
-          .eq("user_id", user.id)
-          .single();
-
-        if (!error && data?.profile_picture) {
-          setImageUrl(data.profile_picture); // set fetched URL
-        }
-      }
-    };
-
-    fetchProfileImage();
-  }, []);
+  const { profilePicture } = useProfile(); // ✅ consume context
+  const [open, setOpen] = useState(false);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -67,9 +46,9 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 35 }) => {
         className="rounded-full border border-gray-300 hover:ring-2 hover:ring-blue-500 transition-all"
         style={{ width: size, height: size, overflow: "hidden" }}
       >
-        {imageUrl ? (
+        {profilePicture ? (
           <Image
-            src={imageUrl}
+            src={profilePicture}
             alt="Profile"
             width={size}
             height={size}
@@ -109,5 +88,6 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 35 }) => {
 };
 
 export default ProfileAvatar;
+
 
 
