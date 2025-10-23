@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-const PROTECTED_UID = process.env.PROTECTED_UID!; 
+// const PROTECTED_UID = process.env.PROTECTED_UID!; 
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,12 +12,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Prevent deletion of account
-    if (userId === PROTECTED_UID) {
-      return NextResponse.json(
-        { error: "Error" },
-        { status: 403 }
-      );
-    }
+    // if (userId === PROTECTED_UID) {
+    //   return NextResponse.json(
+    //     { error: "Error" },
+    //     { status: 403 }
+    //   );
+    // }
 
     // 1️⃣ Delete Auth user
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
