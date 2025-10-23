@@ -31,7 +31,33 @@ export default function ProtectedPage() {
   const user = supabase.auth.getUser();
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase.from("products").select("*");
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error("❌ Error fetching user:", userError);
+      return;
+    }
+
+    // First get the seller id for this user
+    const { data: sellerData, error: sellerError } = await supabase
+      .from("sellers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (sellerError || !sellerData) {
+      console.error("❌ Error fetching seller:", sellerError);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("seller_id", sellerData.id); // fetch products for this seller
+
     if (error) {
       console.error("❌ Error fetching products:", error);
     } else {
