@@ -1,10 +1,13 @@
 "use client";
 
+export const runtime = "nodejs";
+
+import { Suspense } from "react";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function ProductPage() {
+function ProductPageContent() {
   const supabase = createClient();
   const searchParams = useSearchParams();
   const productId = searchParams.get("id");
@@ -18,7 +21,7 @@ export default function ProductPage() {
 
     const fetchProduct = async () => {
       const { data, error } = await supabase
-        .from("PRODUCT")
+        .from("products")
         .select("*")
         .eq("id", productId)
         .single();
@@ -36,7 +39,6 @@ export default function ProductPage() {
     setProduct({ ...product, [e.target.name]: e.target.value });
   };
 
-  // Generate preview image (not saving to DB yet)
   const handleGeneratePreview = async () => {
     if (!productId) return;
     setLoading(true);
@@ -68,12 +70,33 @@ export default function ProductPage() {
     }
   };
 
-  // Confirm and save preview to Supabase
   const handleConfirmSave = async () => {
     if (!previewUrl || !productId) return;
 
     setLoading(true);
     try {
+      // 1️⃣ Get current authenticated user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error("You must be logged in as a verified seller.");
+      }
+
+      // 2️⃣ Fetch seller record
+      const { data: seller, error: sellerError } = await supabase
+        .from("sellers")
+        .select("id, is_seller")
+        .eq("user_id", user.id)
+        .single();
+
+      if (sellerError || !seller || !seller.is_seller) {
+        throw new Error("You are not a verified seller.");
+      }
+
+      // 3️⃣ Upload image
       const blob = await fetch(previewUrl).then((r) => r.blob());
       const filePath = `products/${productId}-ad-${Date.now()}.png`;
 
@@ -92,17 +115,21 @@ export default function ProductPage() {
 
       const newImageUrl = data.publicUrl;
 
+      // 4️⃣ Update product with RLS-compliant fields
       const { error } = await supabase
-        .from("PRODUCT")
+        .from("products")
         .update({
           image_url: newImageUrl,
           description: product.description,
           ai_description: product.ai_description,
+          user_id: user.id,       // ✅ RLS requirement
+          seller_id: seller.id,   // ✅ RLS requirement
         })
         .eq("id", productId);
 
       if (error) throw new Error(error.message);
 
+      // 5️⃣ Update local state
       setProduct((prev: any) => ({ ...prev, image_url: newImageUrl }));
       setPreviewUrl(null);
 
@@ -121,14 +148,18 @@ export default function ProductPage() {
   return (
     <div className="w-full min-h-screen bg-gray-50 dark:bg-neutral-950 text-gray-900 dark:text-gray-100 p-8">
       <div className="max-w-6xl mx-auto space-y-12">
-        <h1 className="text-2xl font-semibold">AI Image Generation for {product.name}</h1>
+        <h1 className="text-2xl font-semibold">
+          AI Image Generation for {product.name}
+        </h1>
 
         {/* Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           <div className="space-y-6">
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium mb-2">Description</label>
+              <label className="block text-sm font-medium mb-2">
+                Description
+              </label>
               <textarea
                 name="description"
                 value={product.description || ""}
@@ -141,7 +172,9 @@ export default function ProductPage() {
 
             {/* AI Description */}
             <div>
-              <label className="block text-sm font-medium mb-2">AI Description</label>
+              <label className="block text-sm font-medium mb-2">
+                AI Description
+              </label>
               <textarea
                 name="ai_description"
                 value={product.ai_description || ""}
@@ -153,7 +186,7 @@ export default function ProductPage() {
             </div>
           </div>
 
-          {/* Dedicated Preview Space */}
+          {/* Preview */}
           <div className="flex flex-col items-center justify-center border border-dashed 
                           border-gray-400 dark:border-gray-700 rounded-lg p-6 min-h-[300px]">
             {previewUrl ? (
@@ -197,6 +230,14 @@ export default function ProductPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProductPageContent />
+    </Suspense>
   );
 }
 

@@ -1,8 +1,11 @@
 "use client";
 
+export const runtime = "nodejs";
+
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function AnalyticsPage() {
+function AnalyticsContent() {
   const searchParams = useSearchParams();
   const productId = searchParams.get("id");
 
@@ -11,5 +14,13 @@ export default function AnalyticsPage() {
       <h2 className="text-xl font-bold">Analytics</h2>
       <p>Showing analytics for product ID: {productId}</p>
     </div>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={<div>Loading analytics...</div>}>
+      <AnalyticsContent />
+    </Suspense>
   );
 }

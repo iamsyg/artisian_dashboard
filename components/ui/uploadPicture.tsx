@@ -135,7 +135,7 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
           <label
             htmlFor="upload-device"
             className={`w-28 h-28 flex items-center justify-center border-2 border-dashed rounded-lg cursor-pointer text-center overflow-hidden transition
-              ${selectedMethod && selectedMethod !== "device" ? "opacity-50 pointer-events-none" : "text-white hover:bg-gray-800"}
+              ${selectedMethod && selectedMethod !== "device" ? "opacity-50 pointer-events-none" : "text-black dark:text-white hover:bg-gray-800 hover:text-white"}
             `}
           >
             {devicePreview ? (
@@ -145,7 +145,7 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
                 className="object-cover w-full h-full rounded-lg"
               />
             ) : (
-              <span className="whitespace-pre-line">Upload{"\n"}from Device</span>
+              <span className="whitespace-pre-line dark:text-white">Upload{"\n"}from Device</span>
             )}
           </label>
           <input
@@ -165,7 +165,7 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
               type="button"
               onClick={startCamera}
               className={`w-28 h-28 border-2 border-dashed rounded-lg transition
-                ${selectedMethod && selectedMethod !== "camera" ? "opacity-50 cursor-not-allowed" : "text-white hover:bg-gray-800"}
+                ${selectedMethod && selectedMethod !== "camera" ? "opacity-50 cursor-not-allowed" : "text-black dark:text-white hover:bg-gray-800 hover:text-white"}
               `}
               disabled={selectedMethod === "device"}
             >

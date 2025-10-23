@@ -8,10 +8,12 @@ import {
   IconWallet,
   IconAnalyze,
   IconDashboard,
+  IconSettings,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { hasEnvVars } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { ProfileProvider } from "@/contexts/ProfileContexts";
 
 export const metadata = {
   title: "Protected Area",
@@ -47,6 +49,11 @@ export default function ProtectedLayout({
   children: ReactNode;
 }) {
   const buttons = [
+    {
+      label: "Profile",
+      href: "/protected/profile",
+      icon: <IconSettings className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />,
+    },
     {
       label: "Dashboard",
       href: "/protected",
@@ -87,8 +94,13 @@ export default function ProtectedLayout({
       </Sidebar>
 
       {/* Right side content */}
+      <ProfileProvider>
       <div className="flex flex-1 flex-col h-screen rounded-tl-2xl rounded-tr-2xl overflow-hidden border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-        <header className="sticky top-0 z-10 bg-black p-6 border-b border-neutral-700 flex justify-between items-center rounded-tl-2xl rounded-tr-2xl">
+        <header className="sticky top-0 z-10 
+          bg-white dark:bg-black 
+          border-b border-neutral-200 dark:border-neutral-700 
+          p-6 flex justify-between items-center 
+          rounded-tl-2xl rounded-tr-2xl transition-colors duration-300">
           <ThemeSwitcher />
           <div className="flex space-x-4">
             {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
@@ -96,6 +108,7 @@ export default function ProtectedLayout({
         </header>
         <main className="flex-1 overflow-y-auto p-4">{children}</main>
       </div>
+      </ProfileProvider>
     </div>
   );
 }
