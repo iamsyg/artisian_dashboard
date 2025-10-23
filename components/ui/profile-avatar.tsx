@@ -14,7 +14,7 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 35 }) => {
   const router = useRouter();
   const isMounted = useIsMounted(); // our hook
   const [open, setOpen] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string>("/mortydefault.png"); // default image
+  const [imageUrl, setImageUrl] = useState<string>(); // default image
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch profile picture from Supabase on mount
@@ -67,15 +67,20 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 35 }) => {
         className="rounded-full border border-gray-300 hover:ring-2 hover:ring-blue-500 transition-all"
         style={{ width: size, height: size, overflow: "hidden" }}
       >
-        <Image
-          src={imageUrl}
-          alt="Profile"
-          width={size}
-          height={size}
-          className="object-cover rounded-full"
-          placeholder="blur"
-          blurDataURL="/mortydefault.png"
-        />
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt="Profile"
+            width={size}
+            height={size}
+            className="object-cover rounded-full"
+          />
+        ) : (
+          <div
+            style={{ width: size, height: size }}
+            className="rounded-full bg-gray-300 dark:bg-gray-700"
+          />
+        )}
       </button>
 
       {/* Dropdown Menu */}

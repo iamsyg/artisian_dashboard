@@ -19,6 +19,9 @@ export default function ProfilePage() {
     language: "",
   });
 
+  // <-- added: hold selected file until save -->
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
+
   // Fetch current seller profile
   useEffect(() => {
     const fetchProfile = async () => {
@@ -55,6 +58,11 @@ export default function ProfilePage() {
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
+  // <-- added: receive file from UploadPicture -->
+  const handleFileSelect = (file: File | null) => {
+    setPendingImage(file);
+  };
+
   // Save updates
   const handleSave = async () => {
     setSaving(true);
@@ -63,11 +71,39 @@ export default function ProfilePage() {
       data: { user },
     } = await supabase.auth.getUser();
 
+    if (!user) {
+      alert("You must be logged in to update your profile.");
+      setSaving(false);
+      return;
+    }
+
+    // <-- added: upload pending image if present and get public URL -->
+    let finalProfilePicture = profile.profile_picture;
+    if (pendingImage) {
+      const filePath = `users/${user.id}/${Date.now()}-${pendingImage.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("profile-pictures")
+        .upload(filePath, pendingImage, { upsert: true });
+
+      if (uploadError) {
+        console.error("Error uploading image:", uploadError);
+        alert("Image upload failed: " + uploadError.message);
+        setSaving(false);
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from("profile-pictures")
+        .getPublicUrl(filePath);
+
+      finalProfilePicture = data.publicUrl;
+    }
+
     const { error } = await supabase
       .from("sellers")
       .update({
         display_name: profile.display_name,
-        profile_picture: profile.profile_picture,
+        profile_picture: finalProfilePicture,
         description: profile.description,
         location: profile.location,
         language: profile.language,
@@ -75,7 +111,12 @@ export default function ProfilePage() {
       .eq("user_id", user?.id);
 
     if (error) alert("Error updating profile: " + error.message);
-    else alert("Profile updated successfully!");
+    else {
+      alert("Profile updated successfully!");
+      // clear pending image and update local state to show new URL immediately
+      setPendingImage(null);
+      setProfile(prev => ({ ...prev, profile_picture: finalProfilePicture }));
+    }
 
     setSaving(false);
   };
@@ -125,7 +166,7 @@ export default function ProfilePage() {
         <div className="flex items-center space-x-4">
         <div className="w-20 h-20 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0">
           <Image
-            src={profile.profile_picture || "/mortydefault.png"}
+            src={profile.profile_picture}
             alt="Profile Picture"
             width={80}
             height={80}
@@ -138,16 +179,8 @@ export default function ProfilePage() {
           <label className="font-medium text-gray-800 dark:text-gray-200">
             Profile Picture
           </label>
-          <UploadPicture
-            onFileSelect={(file) => {
-              if (file) {
-                const url = URL.createObjectURL(file);
-                setProfile((prev) => ({ ...prev, profile_picture: url }));
-              } else {
-                setProfile((prev) => ({ ...prev, profile_picture: "" }));
-              }
-            }}
-          />
+          {/* <-- changed: pass onFileSelect handler to UploadPicture --> */}
+          <UploadPicture onFileSelect={handleFileSelect} />
         </div>
       </div>
 
