@@ -14,7 +14,7 @@ export async function AuthButton() {
 
   return user ? (
     <div className="flex items-center gap-4">
-      <ProfileAvatar imageUrl="/mortydude.jpg" size={35} />
+      <ProfileAvatar size={35} />
       {/* <LogoutButton /> */}
     </div>
   ) : (
