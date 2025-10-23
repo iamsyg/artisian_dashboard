@@ -11,6 +11,7 @@ export default function ProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [profile, setProfile] = useState({
     display_name: "",
     profile_picture: "",
@@ -80,6 +81,39 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+
+      const confirmed = window.confirm(
+        "Are you sure you want to delete your seller account? This cannot be undone."
+      );
+      if (!confirmed) return;
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) return alert("You must be logged in.");
+
+      const res = await fetch("/api/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete account");
+
+      alert("✅ Account deleted successfully");
+      await supabase.auth.signOut();
+      window.location.reload();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full min-h-screen flex justify-center items-center">
@@ -95,29 +129,33 @@ export default function ProfilePage() {
 
         {/* Profile Picture */}
         <div className="flex items-center space-x-4">
+        <div className="w-20 h-20 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0">
           <Image
             src={profile.profile_picture || "/mortydefault.png"}
             alt="Profile Picture"
             width={80}
             height={80}
-            className="rounded-full object-cover border border-gray-300"
+            className="object-cover w-full h-full"
           />
-          <div className="flex flex-col gap-2">
-            <label className="font-medium text-gray-800 dark:text-gray-200">
-              Profile Picture
-            </label>
-            <UploadPicture
-              onFileSelect={(file) => {
-                if (file) {
-                  const url = URL.createObjectURL(file);
-                  setProfile((prev) => ({ ...prev, profile_picture: url }));
-                } else {
-                  setProfile((prev) => ({ ...prev, profile_picture: "" }));
-                }
-              }}
-            />
-          </div>
         </div>
+
+        {/* Upload Section */}
+        <div className="flex flex-col gap-2">
+          <label className="font-medium text-gray-800 dark:text-gray-200">
+            Profile Picture
+          </label>
+          <UploadPicture
+            onFileSelect={(file) => {
+              if (file) {
+                const url = URL.createObjectURL(file);
+                setProfile((prev) => ({ ...prev, profile_picture: url }));
+              } else {
+                setProfile((prev) => ({ ...prev, profile_picture: "" }));
+              }
+            }}
+          />
+        </div>
+      </div>
 
         {/* Display Name */}
         <div>
@@ -128,17 +166,6 @@ export default function ProfilePage() {
             value={profile.display_name || ""}
             onChange={handleChange}
             className="w-full border border-gray-300 rounded-md px-3 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Description */}
-        <div className="flex flex-col gap-2">
-          <label className="block text-sm font-medium mb-1">Description</label>
-
-          {/* Audio + Manual Description Component */}
-          <AudioDescriptionRecorder
-            // Optional: you can provide initial value or a callback if needed
-            // onChange={(value) => setProfile({ ...profile, description: value })}
           />
         </div>
 
@@ -170,7 +197,19 @@ export default function ProfilePage() {
           </select>
         </div>
 
+        {/* Description */}
+        <div className="flex flex-col gap-2">
+          <label className="block text-sm font-medium mb-1">Description</label>
+
+          {/* Audio + Manual Description Component */}
+          <AudioDescriptionRecorder
+            // Optional: you can provide initial value or a callback if needed
+            // onChange={(value) => setProfile({ ...profile, description: value })}
+          />
+        </div>
+
         {/* Save Button */}
+        <div className="flex">
         <button
           onClick={handleSave}
           disabled={saving}
@@ -178,6 +217,17 @@ export default function ProfilePage() {
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>
+        </div>
+        
+        <div className="flex">
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition disabled:opacity-50"
+        >
+          {saving ? "Deleting..." : "Delete Account"}
+        </button>
+        </div>
       </div>
     </div>
   );

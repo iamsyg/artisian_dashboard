@@ -23,7 +23,7 @@ function ProductPageContent() {
 
     const fetchProduct = async () => {
       const { data, error } = await supabase
-        .from("PRODUCT")
+        .from("products")
         .select("*")
         .eq("id", productId)
         .single();
@@ -45,47 +45,93 @@ function ProductPageContent() {
     if (!productId) return;
     setLoading(true);
 
-    let newImageUrl = product.image_url;
+    try {
+      // 1️⃣ Get current authenticated user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (pendingImage) {
-      const filePath = `products/${productId}-${Date.now()}.png`;
-      const { error: uploadError } = await supabase.storage
-        .from("product-photos")
-        .upload(filePath, pendingImage, { upsert: true });
-
-      if (uploadError) {
-        alert("Image upload failed: " + uploadError.message);
+      if (userError || !user) {
+        console.error("❌ No authenticated user found:", userError);
+        alert("You must be logged in as a seller to update a product.");
         setLoading(false);
         return;
       }
 
-      const { data } = supabase.storage
-        .from("product-photos")
-        .getPublicUrl(filePath);
+      // 2️⃣ Fetch seller record for this user
+      const { data: seller, error: sellerError } = await supabase
+        .from("sellers")
+        .select("id, is_seller")
+        .eq("user_id", user.id)
+        .single();
 
-      newImageUrl = data.publicUrl;
-    }
+      if (sellerError || !seller) {
+        console.error("❌ No seller record found:", sellerError);
+        alert("You are not registered as a seller.");
+        setLoading(false);
+        return;
+      }
 
-    const { error } = await supabase
-      .from("PRODUCT")
-      .update({
-        name: product.name,
-        price: product.price,
-        description: product.description,
-        image_url: newImageUrl,
-        ai_description: product.ai_description,
-      })
-      .eq("id", productId);
+      if (!seller.is_seller) {
+        alert("Your seller account is not verified yet.");
+        setLoading(false);
+        return;
+      }
 
-    setLoading(false);
+      // 3️⃣ Handle image upload if pending
+      let newImageUrl = product.image_url;
+      if (pendingImage) {
+        const filePath = `products/${productId}-${Date.now()}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from("product-photos")
+          .upload(filePath, pendingImage, { upsert: true });
 
-    if (error) {
-      alert("Update failed: " + error.message);
-    } else {
-      alert("Product updated successfully!");
+        if (uploadError) {
+          alert("Image upload failed: " + uploadError.message);
+          setLoading(false);
+          return;
+        }
+
+        const { data } = supabase.storage
+          .from("product-photos")
+          .getPublicUrl(filePath);
+
+        newImageUrl = data.publicUrl;
+      }
+
+      // 4️⃣ Update the product with RLS-compliant ownership
+      const { data: updatedData, error: updateError, count } = await supabase
+        .from("products")
+        .update({
+          name: product.name,
+          price: parseFloat(product.price), // ensure numeric
+          description: product.description,
+          image_url: newImageUrl,
+          ai_description: product.ai_description,
+          user_id: user.id,       // ensures user_id matches RLS
+          seller_id: seller.id,   // ensures seller_id matches RLS
+        }, { count: "exact" })
+        .eq("id", productId);
+
+      setLoading(false);
+
+      if (updateError) throw updateError;
+
+      if (count === 0) {
+        alert("You can only update your own verified products.");
+        return;
+      }
+
+      alert("✅ Product updated successfully!");
       setProduct((prev: any) => ({ ...prev, image_url: newImageUrl }));
       setPendingImage(null);
       setShowUploader(false);
+
+    } catch (err: any) {
+      console.error("❌ Error updating product:", err);
+      alert("Update failed: " + err.message);
+      setLoading(false);
     }
   };
 

@@ -28,9 +28,10 @@ export default function ProtectedPage() {
   const supabase = createClient();
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
+  const user = supabase.auth.getUser();
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase.from("PRODUCT").select("*");
+    const { data, error } = await supabase.from("products").select("*");
     if (error) {
       console.error("❌ Error fetching products:", error);
     } else {
@@ -46,7 +47,6 @@ export default function ProtectedPage() {
     productName: "",
     productPrice: "",
     productPhoto: null as File | null,
-    language: "",
     description: "",
   });
 
@@ -64,22 +64,61 @@ export default function ProtectedPage() {
     }
   };
 
-  const handleDelete = async (productId: number) => {
+  const handleDelete = async (productId: string) => {
     try {
-      const { error } = await supabase
-        .from("PRODUCT")
-        .delete()
-        .eq("id", productId);
+      // 1️⃣ Get the current authenticated user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (error) {
-        console.error("❌ Error deleting product:", error);
-        alert("Failed to delete product.");
-      } else {
-        alert("Product deleted successfully!");
-        fetchProducts();
+      if (userError || !user) {
+        console.error("❌ No authenticated user found:", userError);
+        alert("You must be logged in as a seller to delete a product.");
+        return;
       }
+
+      // 2️⃣ Fetch the seller record for this user
+      const { data: seller, error: sellerError } = await supabase
+        .from("sellers")
+        .select("id, is_seller")
+        .eq("user_id", user.id)
+        .single();
+
+      if (sellerError || !seller) {
+        console.error("❌ No seller record found:", sellerError);
+        alert("You are not registered as a seller.");
+        return;
+      }
+
+      if (!seller.is_seller) {
+        alert("Your seller account is not verified yet.");
+        return;
+      }
+
+      // 3️⃣ Attempt to delete the product
+      const { error: deleteError, count } = await supabase
+        .from("products")
+        .delete({ count: "exact" }) // returns number of affected rows
+        .eq("id", productId)
+        .eq("seller_id", seller.id); // ✅ matches RLS condition
+
+      if (deleteError) {
+        console.error("❌ Error deleting product:", deleteError);
+        alert("Failed to delete product.");
+        return;
+      }
+
+      // 4️⃣ Handle case where no rows were deleted (RLS or ownership mismatch)
+      if (count === 0) {
+        return;
+      }
+
+      alert("✅ Product deleted successfully!");
+      fetchProducts();
     } catch (err) {
       console.error("❌ Unexpected error:", err);
+      alert("Something went wrong while deleting the product.");
     }
   };
 
@@ -87,6 +126,37 @@ export default function ProtectedPage() {
     e.preventDefault();
 
     try {
+      // 1️⃣ Get the current authenticated user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error("❌ No authenticated user found:", userError);
+        alert("You must be logged in as a seller to add a product.");
+        return;
+      }
+
+      // 2️⃣ Fetch the seller record for this user (must be verified)
+      const { data: seller, error: sellerError } = await supabase
+        .from("sellers")
+        .select("id, is_seller")
+        .eq("user_id", user.id)
+        .single();
+
+      if (sellerError || !seller) {
+        console.error("❌ No seller record found:", sellerError);
+        alert("You are not registered as a seller.");
+        return;
+      }
+
+      if (!seller.is_seller) {
+        alert("Your seller account is not verified yet.");
+        return;
+      }
+
+      // 3️⃣ Upload the product photo (if provided)
       let photoUrl: string | null = null;
       if (formData.productPhoto) {
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -105,22 +175,25 @@ export default function ProtectedPage() {
         photoUrl = publicUrlData.publicUrl;
       }
 
-      const { data: inserted, error } = await supabase
-        .from("PRODUCT")
+      // 4️⃣ Insert product with seller_id + user_id
+      const { data: inserted, error: insertError } = await supabase
+        .from("products")
         .insert([
           {
             name: formData.productName,
-            price: formData.productPrice,
+            price: parseFloat(formData.productPrice),
             description: formData.description,
             image_url: photoUrl,
-            language: formData.language,
+            user_id: user.id,
+            seller_id: seller.id, // ✅ important for RLS check
           },
         ])
         .select()
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
+      // 5️⃣ Optional: call your /api/protected route
       if (inserted) {
         try {
           const res = await fetch("/api/protected", {
@@ -139,17 +212,19 @@ export default function ProtectedPage() {
         }
       }
 
+      // 6️⃣ Refresh and reset form
       await fetchProducts();
-
       setFormData({
         productName: "",
         productPrice: "",
         productPhoto: null,
-        language: "",
         description: "",
       });
+
+      alert("✅ Product added successfully!");
     } catch (err) {
       console.error("❌ Error submitting form:", err);
+      alert("Failed to add product. Check console for details.");
     }
   };
 
@@ -256,10 +331,7 @@ export default function ProtectedPage() {
             </CardContent>
 
             <CardFooter className="flex flex-col justify-between">
-              {/* Language Info */}
-              <span className="text-xs text-neutral-500 mb-3">
-                Language: {product.language}
-              </span>
+              
 
               {/* Action Buttons */}
               <div className="flex flex-row gap-2 items-end">

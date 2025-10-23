@@ -1,22 +1,43 @@
 "use client";
+
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 interface ProfileAvatarProps {
-  imageUrl?: string;
   size?: number;
 }
 
-const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
-  imageUrl = "/mortydefault.jpg",
-  size = 35,
-}) => {
+const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 35 }) => {
   const router = useRouter();
+  const isMounted = useIsMounted(); // our hook
   const [open, setOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string>("/mortydefault.png"); // default image
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch profile picture from Supabase on mount
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data, error } = await supabase
+          .from("sellers")
+          .select("profile_picture")
+          .eq("user_id", user.id)
+          .single();
+
+        if (!error && data?.profile_picture) {
+          setImageUrl(data.profile_picture); // set fetched URL
+        }
+      }
+    };
+
+    fetchProfileImage();
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -35,6 +56,9 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
     router.push("/auth/login");
   };
 
+  // Prevent rendering on server to avoid hydration mismatch
+  if (!isMounted) return null;
+
   return (
     <div className="relative inline-block" ref={dropdownRef}>
       {/* Profile Button */}
@@ -49,14 +73,14 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
           width={size}
           height={size}
           className="object-cover rounded-full"
+          placeholder="blur"
+          blurDataURL="/mortydefault.png"
         />
       </button>
 
       {/* Dropdown Menu */}
       {open && (
-        <div
-          className="absolute right-0 mt-2 w-44 bg-white dark:bg-gray-900 shadow-md rounded-md border border-gray-200 dark:border-gray-700 animate-fadeIn"
-        >
+        <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-gray-900 shadow-md rounded-md border border-gray-200 dark:border-gray-700 animate-fadeIn">
           <button
             onClick={() => {
               router.push("/protected/profile");
@@ -80,3 +104,5 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
 };
 
 export default ProfileAvatar;
+
+

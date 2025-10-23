@@ -21,7 +21,7 @@ function ProductPageContent() {
 
     const fetchProduct = async () => {
       const { data, error } = await supabase
-        .from("PRODUCT")
+        .from("products")
         .select("*")
         .eq("id", productId)
         .single();
@@ -75,6 +75,28 @@ function ProductPageContent() {
 
     setLoading(true);
     try {
+      // 1️⃣ Get current authenticated user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error("You must be logged in as a verified seller.");
+      }
+
+      // 2️⃣ Fetch seller record
+      const { data: seller, error: sellerError } = await supabase
+        .from("sellers")
+        .select("id, is_seller")
+        .eq("user_id", user.id)
+        .single();
+
+      if (sellerError || !seller || !seller.is_seller) {
+        throw new Error("You are not a verified seller.");
+      }
+
+      // 3️⃣ Upload image
       const blob = await fetch(previewUrl).then((r) => r.blob());
       const filePath = `products/${productId}-ad-${Date.now()}.png`;
 
@@ -93,17 +115,21 @@ function ProductPageContent() {
 
       const newImageUrl = data.publicUrl;
 
+      // 4️⃣ Update product with RLS-compliant fields
       const { error } = await supabase
-        .from("PRODUCT")
+        .from("products")
         .update({
           image_url: newImageUrl,
           description: product.description,
           ai_description: product.ai_description,
+          user_id: user.id,       // ✅ RLS requirement
+          seller_id: seller.id,   // ✅ RLS requirement
         })
         .eq("id", productId);
 
       if (error) throw new Error(error.message);
 
+      // 5️⃣ Update local state
       setProduct((prev: any) => ({ ...prev, image_url: newImageUrl }));
       setPreviewUrl(null);
 
