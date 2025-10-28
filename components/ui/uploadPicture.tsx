@@ -10,6 +10,8 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
   const [devicePreview, setDevicePreview] = useState<string | null>(null);
   const [cameraPreview, setCameraPreview] = useState<string | null>(null);
 
+  const [selectedMethod, setSelectedMethod] = useState<"device" | "camera" | null>(null);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -23,6 +25,7 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
     }
     const url = URL.createObjectURL(devicePhoto);
     setDevicePreview(url);
+    setSelectedMethod("device");
     return () => URL.revokeObjectURL(url);
   }, [devicePhoto]);
 
@@ -34,6 +37,7 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
     }
     const url = URL.createObjectURL(cameraPhoto);
     setCameraPreview(url);
+    setSelectedMethod("camera");
     return () => URL.revokeObjectURL(url);
   }, [cameraPhoto]);
 
@@ -62,20 +66,18 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // try to play; ignore play() promise errors
         videoRef.current.play().catch(() => {});
       }
     } catch (err) {
       console.error("Couldn't start camera:", err);
       setShowCamera(false);
-      // optionally notify the user here
     }
   };
 
   const closeCamera = () => {
     setShowCamera(false);
-    setCameraPhoto(null);       // ✅ clear camera file
-    setCameraPreview(null);     // ✅ clear preview URL
+    setCameraPhoto(null);
+    setCameraPreview(null);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -89,13 +91,11 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    // set canvas size to desired output (square)
-    const size = 400; // change as needed
+    const size = 400;
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    // draw centered crop (attempt to square-crop the center)
     const vw = video.videoWidth || video.clientWidth;
     const vh = video.videoHeight || video.clientHeight;
     const minSide = Math.min(vw, vh);
@@ -109,7 +109,6 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
       setCameraPhoto(file);
       onFileSelect?.(file);
 
-      // stop camera
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
@@ -119,63 +118,94 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
     }, "image/png");
   };
 
+  const resetSelection = () => {
+    setDevicePhoto(null);
+    setCameraPhoto(null);
+    setDevicePreview(null);
+    setCameraPreview(null);
+    setSelectedMethod(null);
+    onFileSelect?.(null);
+  };
+
   return (
-    <div className="flex gap-6">
-      {/* Upload from device */}
-      <div className="flex flex-col items-center">
-        <label
-          htmlFor="upload-device"
-          className="w-28 h-28 flex items-center justify-center border-2 border-dashed rounded-lg text-white cursor-pointer hover:bg-gray-800 transition text-center overflow-hidden"
-        >
-          {devicePreview ? (
-            <img
-              src={devicePreview}
-              alt="Device Preview"
-              className="object-cover w-full h-full rounded-lg"
-            />
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex gap-6">
+        {/* Upload from device */}
+        <div className="flex flex-col items-center">
+          <label
+            htmlFor="upload-device"
+            className={`w-28 h-28 flex items-center justify-center border-2 border-dashed rounded-lg cursor-pointer text-center overflow-hidden transition
+              ${selectedMethod && selectedMethod !== "device" ? "opacity-50 pointer-events-none" : "text-black dark:text-white hover:bg-gray-800 hover:text-white"}
+            `}
+          >
+            {devicePreview ? (
+              <img
+                src={devicePreview}
+                alt="Device Preview"
+                className="object-cover w-full h-full rounded-lg"
+              />
+            ) : (
+              <span className="whitespace-pre-line dark:text-white">Upload{"\n"}from Device</span>
+            )}
+          </label>
+          <input
+            id="upload-device"
+            type="file"
+            accept="image/*"
+            onChange={handleDeviceChange}
+            className="hidden"
+            disabled={selectedMethod === "camera"}
+          />
+        </div>
+
+        {/* Capture from camera */}
+        <div className="flex flex-col items-center">
+          {!cameraPhoto ? (
+            <button
+              type="button"
+              onClick={startCamera}
+              className={`w-28 h-28 border-2 border-dashed rounded-lg transition
+                ${selectedMethod && selectedMethod !== "camera" ? "opacity-50 cursor-not-allowed" : "text-black dark:text-white hover:bg-gray-800 hover:text-white"}
+              `}
+              disabled={selectedMethod === "device"}
+            >
+              Open Camera
+            </button>
           ) : (
-            <span className="whitespace-pre-line">Upload{"\n"}from Device</span>
+            <button
+              type="button"
+              onClick={startCamera}
+              className={`w-28 h-28 border-2 border-dashed rounded-lg overflow-hidden relative p-0
+                ${selectedMethod && selectedMethod !== "camera" ? "opacity-50 cursor-not-allowed" : ""}
+              `}
+              aria-label="Retake photo"
+              disabled={selectedMethod === "device"}
+            >
+              {cameraPreview && (
+                <img
+                  src={cameraPreview}
+                  alt="Camera Preview"
+                  className="object-cover w-full h-full rounded-lg"
+                />
+              )}
+              <span className="absolute top-1 right-1 bg-black bg-opacity-50 text-xs px-1 rounded text-white">
+                Retake
+              </span>
+            </button>
           )}
-        </label>
-        <input
-          id="upload-device"
-          type="file"
-          accept="image/*"
-          onChange={handleDeviceChange}
-          className="hidden"
-        />
+        </div>
       </div>
 
-      {/* Capture from camera */}
-      <div className="flex flex-col items-center">
-        {!cameraPhoto ? (
-          <button
-            type="button"
-            onClick={startCamera}
-            className="w-28 h-28 border-2 border-dashed rounded-lg text-white hover:bg-gray-800 transition"
-          >
-            Open Camera
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={startCamera} // clicking preview reopens camera for retake
-            className="w-28 h-28 border-2 border-dashed rounded-lg overflow-hidden relative p-0"
-            aria-label="Retake photo"
-          >
-            {cameraPreview && (
-                <img
-                    src={cameraPreview}
-                    alt="Camera Preview"
-                    className="object-cover w-full h-full rounded-lg"
-                />
-            )}
-            <span className="absolute top-1 right-1 bg-black bg-opacity-50 text-xs px-1 rounded text-white">
-              Retake
-            </span>
-          </button>
-        )}
-      </div>
+      {/* Reset Button */}
+      {selectedMethod && (
+        <button
+          type="button"
+          onClick={resetSelection}
+          className="px-4 py-2 bg-red-600 text-white rounded"
+        >
+          Reset
+        </button>
+      )}
 
       {/* Camera Preview Modal */}
       {showCamera && (
@@ -214,4 +244,5 @@ const UploadPicture: React.FC<UploadPictureProps> = ({ onFileSelect }) => {
 };
 
 export default UploadPicture;
+
 

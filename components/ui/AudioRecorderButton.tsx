@@ -3,7 +3,11 @@
 import React, { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const AudioRecorderButton: React.FC = () => {
+interface AudioRecorderButtonProps {
+  onUploadComplete?: (fileName: string) => void;
+}
+
+const AudioRecorderButton: React.FC<AudioRecorderButtonProps> = ({ onUploadComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -49,7 +53,7 @@ const AudioRecorderButton: React.FC = () => {
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
-        .from("audio-records") // <-- Ensure this bucket exists
+        .from("audio-records")
         .upload(fileName, audioBlob, {
           contentType: "audio/webm",
           upsert: true,
@@ -59,6 +63,11 @@ const AudioRecorderButton: React.FC = () => {
         console.error("Upload failed:", error.message);
       } else {
         console.log("Upload successful:", data);
+
+        // ✅ Notify parent component
+        if (onUploadComplete) {
+          onUploadComplete(fileName);
+        }
       }
     };
   };

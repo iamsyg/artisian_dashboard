@@ -6,6 +6,7 @@ import {
   ModalContent,
   ModalFooter,
   ModalTrigger,
+  ModalDoneButton,
 } from "../../components/ui/animated-modal";
 
 import {
@@ -27,9 +28,36 @@ export default function ProtectedPage() {
   const supabase = createClient();
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
+  const user = supabase.auth.getUser();
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase.from("PRODUCT").select("*");
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error("❌ Error fetching user:", userError);
+      return;
+    }
+
+    // First get the seller id for this user
+    const { data: sellerData, error: sellerError } = await supabase
+      .from("sellers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (sellerError || !sellerData) {
+      console.error("❌ Error fetching seller:", sellerError);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("seller_id", sellerData.id); // fetch products for this seller
+
     if (error) {
       console.error("❌ Error fetching products:", error);
     } else {
@@ -45,7 +73,6 @@ export default function ProtectedPage() {
     productName: "",
     productPrice: "",
     productPhoto: null as File | null,
-    language: "",
     description: "",
   });
 
@@ -63,23 +90,61 @@ export default function ProtectedPage() {
     }
   };
 
-  // ✅ Handle Delete Function
-  const handleDelete = async (productId: number) => {
+  const handleDelete = async (productId: string) => {
     try {
-      const { error } = await supabase
-        .from("PRODUCT")
-        .delete()
-        .eq("id", productId);
+      // 1️⃣ Get the current authenticated user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (error) {
-        console.error("❌ Error deleting product:", error);
-        alert("Failed to delete product.");
-      } else {
-        alert("Product deleted successfully!");
-        fetchProducts(); // Refresh product list
+      if (userError || !user) {
+        console.error("❌ No authenticated user found:", userError);
+        alert("You must be logged in as a seller to delete a product.");
+        return;
       }
+
+      // 2️⃣ Fetch the seller record for this user
+      const { data: seller, error: sellerError } = await supabase
+        .from("sellers")
+        .select("id, is_seller")
+        .eq("user_id", user.id)
+        .single();
+
+      if (sellerError || !seller) {
+        console.error("❌ No seller record found:", sellerError);
+        alert("You are not registered as a seller.");
+        return;
+      }
+
+      if (!seller.is_seller) {
+        alert("Your seller account is not verified yet.");
+        return;
+      }
+
+      // 3️⃣ Attempt to delete the product
+      const { error: deleteError, count } = await supabase
+        .from("products")
+        .delete({ count: "exact" }) // returns number of affected rows
+        .eq("id", productId)
+        .eq("seller_id", seller.id); // ✅ matches RLS condition
+
+      if (deleteError) {
+        console.error("❌ Error deleting product:", deleteError);
+        alert("Failed to delete product.");
+        return;
+      }
+
+      // 4️⃣ Handle case where no rows were deleted (RLS or ownership mismatch)
+      if (count === 0) {
+        return;
+      }
+
+      alert("✅ Product deleted successfully!");
+      fetchProducts();
     } catch (err) {
       console.error("❌ Unexpected error:", err);
+      alert("Something went wrong while deleting the product.");
     }
   };
 
@@ -87,6 +152,37 @@ export default function ProtectedPage() {
     e.preventDefault();
 
     try {
+      // 1️⃣ Get the current authenticated user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error("❌ No authenticated user found:", userError);
+        alert("You must be logged in as a seller to add a product.");
+        return;
+      }
+
+      // 2️⃣ Fetch the seller record for this user (must be verified)
+      const { data: seller, error: sellerError } = await supabase
+        .from("sellers")
+        .select("id, is_seller")
+        .eq("user_id", user.id)
+        .single();
+
+      if (sellerError || !seller) {
+        console.error("❌ No seller record found:", sellerError);
+        alert("You are not registered as a seller.");
+        return;
+      }
+
+      if (!seller.is_seller) {
+        alert("Your seller account is not verified yet.");
+        return;
+      }
+
+      // 3️⃣ Upload the product photo (if provided)
       let photoUrl: string | null = null;
       if (formData.productPhoto) {
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -105,48 +201,75 @@ export default function ProtectedPage() {
         photoUrl = publicUrlData.publicUrl;
       }
 
-      const { error } = await supabase.from("PRODUCT").insert([
-        {
-          name: formData.productName,
-          price: formData.productPrice,
-          description: formData.description,
-          image_url: photoUrl,
-          language: formData.language,
-        },
-      ]);
+      // 4️⃣ Insert product with seller_id + user_id
+      const { data: inserted, error: insertError } = await supabase
+        .from("products")
+        .insert([
+          {
+            name: formData.productName,
+            price: parseFloat(formData.productPrice),
+            description: formData.description,
+            image_url: photoUrl,
+            user_id: user.id,
+            seller_id: seller.id, // ✅ important for RLS check
+          },
+        ])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      // ✅ Refresh products list
+      // 5️⃣ Optional: call your /api/protected route
+      if (inserted) {
+        try {
+          const res = await fetch("/api/protected", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              product_id: inserted.id,
+              image_url: inserted.image_url,
+            }),
+          });
+
+          const result = await res.json();
+          console.log("AI route result:", result);
+        } catch (err) {
+          console.error("❌ Failed to call AI route:", err);
+        }
+      }
+
+      // 6️⃣ Refresh and reset form
       await fetchProducts();
-
-      // ✅ Reset form
       setFormData({
         productName: "",
         productPrice: "",
         productPhoto: null,
-        language: "",
         description: "",
       });
+
+      alert("✅ Product added successfully!");
     } catch (err) {
       console.error("❌ Error submitting form:", err);
+      alert("Failed to add product. Check console for details.");
     }
   };
 
   return (
-    <div className="py-20 flex flex-col items-center justify-start w-full">
+    <div className="py-20 flex flex-col items-center justify-start w-full bg-neutral-50 dark:bg-neutral-900 transition-colors">
       {/* Modal Section */}
       <Modal>
-        <ModalTrigger className="bg-black dark:bg-white dark:text-black text-white flex justify-top group/modal-btn">
+        <ModalTrigger className="bg-neutral-800 dark:bg-neutral-200 text-white dark:text-black flex justify-top group/modal-btn rounded-lg shadow hover:opacity-90 transition">
           <div className="w-20 h-20 rounded-md flex items-center justify-center">
-            <span className="text-8xl leading-none flex items-center mb-3">+</span>
+            <span className="text-6xl font-bold leading-none flex items-center mb-2">
+              +
+            </span>
           </div>
         </ModalTrigger>
 
         <ModalBody>
           <ModalContent>
             <form className="flex flex-col items-center gap-6 p-6 w-full max-w-md mx-auto">
-              <h2 className="text-lg font-medium text-white">
+              <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100">
                 Let's add a new product
               </h2>
 
@@ -157,69 +280,52 @@ export default function ProtectedPage() {
                 value={formData.productName}
                 onChange={handleChange}
                 placeholder="Enter product name"
-                className="w-full p-2 rounded-md border border-gray-500 bg-black text-white focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full p-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-400"
               />
 
               {/* Product Price */}
-              <div className="w-full flex items-center rounded-md border border-gray-500 bg-black text-white focus-within:ring-2 focus-within:ring-gray-400">
-                <span className="px-3 text-gray-300">₹</span>
+              <div className="w-full flex items-center rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus-within:ring-2 focus-within:ring-neutral-400">
+                <span className="px-3 text-neutral-500">₹</span>
                 <input
                   type="number"
                   name="productPrice"
                   value={formData.productPrice}
                   onChange={handleChange}
                   placeholder="Enter product price"
-                  className="w-full p-2 bg-black text-white focus:outline-none"
+                  className="w-full p-2 bg-transparent text-inherit focus:outline-none"
                 />
               </div>
 
               {/* Upload Photo */}
               <div className="flex flex-col items-center">
-                <UploadPicture onFileSelect={(file) => setFormData({ ...formData, productPhoto: file })} />
+                <UploadPicture
+                  onFileSelect={(file) =>
+                    setFormData({ ...formData, productPhoto: file })
+                  }
+                />
               </div>
-
-              {/* Language Selector */}
-              <select
-                name="language"
-                value={formData.language}
-                onChange={handleChange}
-                className="w-full p-2 rounded-md border border-gray-500 bg-black text-white"
-              >
-                <option value="" disabled>
-                  Choose your preferred language
-                </option>
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-                <option value="es">Spanish</option>
-              </select>
 
               {/* AI / Record Audio buttons */}
               <div className="flex justify-center items-start w-full relative">
-                <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-gray-400 p-3">
+                <span className="absolute left-1/2 transform -translate-x-1/2 top-10 text-neutral-500 p-3">
                   OR
                 </span>
                 <AudioRecorderButton />
               </div>
-                
+
               {/* Description */}
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
                 placeholder="Write description yourself"
-                className="w-full h-24 p-3 mt-5 rounded-md border border-gray-500 bg-black text-white resize-none focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full h-24 p-3 mt-5 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 resize-none focus:outline-none focus:ring-2 focus:ring-neutral-400"
               ></textarea>
             </form>
           </ModalContent>
 
           <ModalFooter className="gap-4">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="bg-black text-white dark:bg-white dark:text-black text-sm px-2 py-1 rounded-md border border-black w-28"
-            >
-              Done
-            </button>
+            <ModalDoneButton onSubmit={handleSubmit} />
           </ModalFooter>
         </ModalBody>
       </Modal>
@@ -229,11 +335,13 @@ export default function ProtectedPage() {
         {products.map((product) => (
           <Card
             key={product.id}
-            className="bg-black text-white border border-gray-700 w-64"
+            className="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 w-64 shadow-sm hover:shadow-md transition"
           >
             <CardHeader>
               <CardTitle>{product.name}</CardTitle>
-              <CardDescription>₹{product.price}</CardDescription>
+              <CardDescription className="text-neutral-600 dark:text-neutral-400">
+                ₹{product.price}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {product.image_url && (
@@ -243,29 +351,29 @@ export default function ProtectedPage() {
                   className="w-full h-40 object-cover rounded-md mb-3"
                 />
               )}
-              <p className="text-sm text-gray-300">{product.description}</p>
+              <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                {product.description}
+              </p>
             </CardContent>
 
             <CardFooter className="flex flex-col justify-between">
-              {/* Language Info */}
-              <span className="text-xs text-gray-500 items-left mb-3">
-                Language: {product.language}
-              </span>
+              
 
               {/* Action Buttons */}
               <div className="flex flex-row gap-2 items-end">
-                {/* Expand Button */}
                 <button
-                  className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition"
-                  onClick={() => router.push(`/protected/product/${product.id}`)} // Replace this later with real modal logic
+                  className="px-3 py-1 text-xs bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-800 dark:text-neutral-100 rounded transition"
+                  onClick={() =>
+                    router.push(`/protected/product?id=${product.id}`)
+                  }
                 >
                   Expand
                 </button>
 
-                {/* Delete Button */}
                 <button
                   onClick={() => handleDelete(product.id)}
-                  className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition" >
+                  className="px-3 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
+                >
                   Delete
                 </button>
               </div>
@@ -276,3 +384,4 @@ export default function ProtectedPage() {
     </div>
   );
 }
+

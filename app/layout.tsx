@@ -3,16 +3,16 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Toaster } from 'react-hot-toast'
+import { Suspense } from "react"
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "http://localhost:3000";
 
-// export const metadata: Metadata = {
-//   metadataBase: new URL(defaultUrl),
-//   title: "Next.js and Supabase Starter Kit",
-//   description: "The fastest way to build apps with Next.js and Supabase",
-// };
+export const metadata: Metadata = {
+  title: "Artisan AI — Seller Landing",
+  description: "An artistic, focused landing experience for sellers using Artisan AI.",
+}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,7 +35,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <Suspense fallback={null}>{children}</Suspense>
         </ThemeProvider>
       </body>
     </html>

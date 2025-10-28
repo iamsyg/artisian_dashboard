@@ -217,6 +217,33 @@ const CloseIcon = () => {
   );
 };
 
+export function ModalDoneButton({
+  onSubmit,
+  children = "Done",
+  className,
+}: {
+  onSubmit: (e: any) => Promise<void> | void;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  const { setOpen } = useModal(); // ✅ safely inside provider
+  return (
+    <button
+      type="button"
+      onClick={async (e) => {
+        await onSubmit(e);  // run the form logic
+        setOpen(false);     // close modal after success
+      }}
+      className={cn(
+        "bg-neutral-800 text-white dark:bg-neutral-200 dark:text-black text-sm px-4 py-2 rounded-md border border-transparent hover:opacity-90 transition w-28",
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+};
+
 // Hook to detect clicks outside of a component.
 // Add it in a separate file, I've added here for simplicity
 export const useOutsideClick = (
